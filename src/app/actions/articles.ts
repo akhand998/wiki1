@@ -1,6 +1,10 @@
 "use server";
 
+import { eq } from "drizzle-orm";
 import { redirect } from "next/navigation";
+import db from "@/db";
+import { authorizeUserToEditArticle } from "@/db/authz";
+import { articles } from "@/db/schema";
 import { stackServerApp } from "@/stack/server";
 
 // Server actions for articles (stubs)
@@ -20,39 +24,90 @@ export type UpdateArticleInput = {
 };
 
 export async function createArticle(data: CreateArticleInput) {
-  const user = stackServerApp.getUser();
+  const user = await stackServerApp.getUser();
   if (!user) {
     throw new Error("❌ Unauthorized");
   }
 
-  // TODO: Replace with actual database call
-  console.log("✨ createArticle called:", data);
-  return { success: true, message: "Article create logged (stub)" };
+  try {
+    await db.insert(articles).values({
+      title: data.title,
+      content: data.content,
+      slug: `${Date.now()}`,
+      authorId: data.authorId,
+      imageUrl: data.imageUrl ?? undefined,
+      createdAt: new Date().toISOString(),
+    });
+
+    console.log("✨ createArticle called:", data);
+    return { success: true, message: "Article created successfully" };
+  } catch (error) {
+    console.error("Database error, operation failed:", error);
+    return {
+      success: false,
+      message: "Failed to create article (database connection issue)",
+    };
+  }
 }
 
 export async function updateArticle(id: string, data: UpdateArticleInput) {
-  const user = stackServerApp.getUser();
+  const user = await stackServerApp.getUser();
   if (!user) {
     throw new Error("❌ Unauthorized");
   }
 
-  // TODO: Replace with actual database update
+  if (!(await authorizeUserToEditArticle(user.id, +id))) {
+    throw new Error(
+      "❌ Forbidden: You do not have permission to edit this article.",
+    );
+  }
+
   console.log("📝 updateArticle called:", { id, ...data });
-  return { success: true, message: `Article ${id} update logged (stub)` };
+
+  try {
+    await db
+      .update(articles)
+      .set({
+        title: data.title,
+        content: data.content,
+        imageUrl: data.imageUrl ?? undefined,
+      })
+      .where(eq(articles.id, +id));
+    return { success: true, message: `Article ${id} updated successfully` };
+  } catch (error) {
+    console.error("Database error, operation failed:", error);
+    return {
+      success: false,
+      message: "Failed to update article (database connection issue)",
+    };
+  }
 }
 
 export async function deleteArticle(id: string) {
-  const user = stackServerApp.getUser();
+  const user = await stackServerApp.getUser();
   if (!user) {
     throw new Error("❌ Unauthorized");
   }
 
-  // TODO: Replace with actual database delete
-  console.log("🗑️ deleteArticle called:", id);
-  return { success: true, message: `Article ${id} delete logged (stub)` };
-}
+  if (!(await authorizeUserToEditArticle(user.id, +id))) {
+    throw new Error(
+      "❌ Forbidden: You do not have permission to delete this article.",
+    );
+  }
 
-// Form-friendly server action: accepts FormData from a client form and calls deleteArticle
+  console.log("🗑️ deleteArticle called:", id);
+
+  try {
+    await db.delete(articles).where(eq(articles.id, +id));
+    return { success: true, message: `Article ${id} deleted successfully` };
+  } catch (error) {
+    console.error("Database error, operation failed:", error);
+    return {
+      success: false,
+      message: "Failed to delete article (database connection issue)",
+    };
+  }
+} // Form-friendly server action: accepts FormData from a client form and calls deleteArticle
 export async function deleteArticleForm(formData: FormData): Promise<void> {
   const id = formData.get("id");
   if (!id) {
