@@ -2,6 +2,7 @@ import { eq } from "drizzle-orm";
 import { usersSync } from "drizzle-orm/neon";
 import db from "@/db/index";
 import { articles } from "@/db/schema";
+import {redis} from "@/cache";
 
 const mockArticles = [
   {
@@ -23,6 +24,13 @@ const mockArticles = [
 ];
 
 export async function getArticles() {
+  const cached = await redis.get("articles:all");
+  if (cached) {
+    console.log("✅ Articles fetched from cache");
+    return cached;
+  }
+  
+  console.log("⚠️ Articles not in cache, fetching from DB");
   try {
     const response = await db
       .select({
@@ -34,6 +42,8 @@ export async function getArticles() {
       })
       .from(articles)
       .leftJoin(usersSync, eq(articles.authorId, usersSync.id));
+    await redis.set("articles:all", response, { ex: 60 }); 
+
     return response;
   } catch (error) {
     console.error("Database connection failed, using mock data:", error);

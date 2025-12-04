@@ -6,9 +6,8 @@ import db from "@/db";
 import { authorizeUserToEditArticle } from "@/db/authz";
 import { articles } from "@/db/schema";
 import { stackServerApp } from "@/stack/server";
+import {redis} from "@/cache";
 
-// Server actions for articles (stubs)
-// TODO: Replace with real database operations when ready
 
 export type CreateArticleInput = {
   title: string;
@@ -38,6 +37,7 @@ export async function createArticle(data: CreateArticleInput) {
       imageUrl: data.imageUrl ?? undefined,
       createdAt: new Date().toISOString(),
     });
+    redis.del("articles:all");
 
     console.log("✨ createArticle called:", data);
     return { success: true, message: "Article created successfully" };
