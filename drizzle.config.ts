@@ -1,16 +1,12 @@
-import assert from "node:assert";
 import "dotenv/config";
-
+import assert from "node:assert";
 import { defineConfig } from "drizzle-kit";
 
-assert(
-  process.env.DATABASE_URL,
-  "DATABASE_URL is not set in environment variables",
-);
+assert(process.env.DATABASE_URL, "DATABASE_URL must be defined");
 
 export default defineConfig({
-  schema: "./src/db/schema.ts",
   out: "./drizzle",
+  schema: "./src/db/schema.ts",
   dialect: "postgresql",
   dbCredentials: {
     url: process.env.DATABASE_URL,

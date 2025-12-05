@@ -1,13 +1,13 @@
 CREATE TABLE "articles" (
 	"id" serial PRIMARY KEY NOT NULL,
 	"title" text NOT NULL,
-	"content" text NOT NULL,
 	"slug" text NOT NULL,
+	"content" text NOT NULL,
 	"image_url" text,
+	"published" boolean DEFAULT false NOT NULL,
+	"author_id" text NOT NULL,
 	"created_at" timestamp DEFAULT now() NOT NULL,
 	"updated_at" timestamp DEFAULT now() NOT NULL,
-	"is_published" boolean DEFAULT false NOT NULL,
-	"author_id" text NOT NULL,
 	CONSTRAINT "articles_slug_unique" UNIQUE("slug")
 );
 --> statement-breakpoint

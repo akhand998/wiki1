@@ -2,6 +2,7 @@
 
 import MDEditor from "@uiw/react-md-editor";
 import { Upload, X } from "lucide-react";
+import { useRouter } from "next/navigation";
 import type React from "react";
 import { useState } from "react";
 import { createArticle, updateArticle } from "@/app/actions/articles";
@@ -16,6 +17,7 @@ interface WikiEditorProps {
   initialContent?: string;
   isEditing?: boolean;
   articleId?: string;
+  userId?: string;
 }
 
 interface FormErrors {
@@ -28,12 +30,14 @@ export default function WikiEditor({
   initialContent = "",
   isEditing = false,
   articleId,
+  userId = "user-1",
 }: WikiEditorProps) {
   const [title, setTitle] = useState(initialTitle);
   const [content, setContent] = useState(initialContent);
   const [files, setFiles] = useState<File[]>([]);
   const [errors, setErrors] = useState<FormErrors>({});
   const [isSubmitting, setIsSubmitting] = useState(false);
+  const router = useRouter();
 
   // Validate form
   const validateForm = (): boolean => {
@@ -89,16 +93,22 @@ export default function WikiEditor({
       const payload = {
         title: title.trim(),
         content: content.trim(),
-        authorId: "user-1", // TODO: wire real user id
         imageUrl,
+        authorId: userId,
       };
 
       if (isEditing && articleId) {
         await updateArticle(articleId, payload);
-        alert("Article updated (stub)");
+        // Redirect to article page after successful update
+        router.push(`/wiki/${articleId}`);
       } else {
-        await createArticle(payload);
-        alert("Article created (stub)");
+        const result = await createArticle(payload);
+        // Redirect to article page after successful create
+        if (result.id) {
+          router.push(`/wiki/${result.id}`);
+        } else {
+          router.push("/");
+        }
       }
     } catch (err) {
       console.error("Error submitting article:", err);
@@ -144,6 +154,7 @@ export default function WikiEditor({
               <Label htmlFor="title">Title *</Label>
               <Input
                 id="title"
+                name="title"
                 type="text"
                 placeholder="Enter article title..."
                 value={title}
@@ -177,10 +188,12 @@ export default function WikiEditor({
                   hideToolbar={false}
                   visibleDragbar={false}
                   textareaProps={{
+                    name: "content",
                     placeholder: "Write your article content in Markdown...",
                     style: { fontSize: 14, lineHeight: 1.5 },
                     // make these explicit so SSR and client output match exactly
-                    autoCapitalize: "off",
+                    // server-rendered HTML used autoCapitalize="none" — keep that value
+                    autoCapitalize: "none",
                     autoComplete: "off",
                     autoCorrect: "off",
                     spellCheck: false,
@@ -270,13 +283,14 @@ export default function WikiEditor({
                 variant="outline"
                 onClick={handleCancel}
                 disabled={isSubmitting}
+                className="cursor-pointer"
               >
                 Cancel
               </Button>
               <Button
                 type="submit"
                 disabled={isSubmitting}
-                className="min-w-[100px]"
+                className="min-w-[100px] cursor-pointer"
               >
                 {isSubmitting ? "Saving..." : "Save Article"}
               </Button>

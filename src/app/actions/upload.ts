@@ -1,8 +1,9 @@
 "use server";
 
+import { put } from "@vercel/blob";
 import { stackServerApp } from "@/stack/server";
-import {put} from "@vercel/blob";
 
+// Server action to handle uploads (stub)
 
 export type UploadedFile = {
   url: string;
@@ -40,19 +41,24 @@ export async function uploadFile(formData: FormData): Promise<UploadedFile> {
   if (file.size > MAX_FILE_SIZE) {
     throw new Error("File too large");
   }
+
   try {
     const blob = await put(file.name, file, {
       access: "public",
       addRandomSuffix: true,
     });
+
+    type VercelBlobResult = { url?: string; pathname?: string };
+    const blobResult = blob as unknown as VercelBlobResult;
+
     return {
-      url: blob.url ?? "",
+      url: blobResult.url ?? "",
       size: file.size,
       type: file.type,
-      filename: file.name,
+      filename: blobResult.pathname ?? file.name,
     };
-  } catch (error) {
-    console.error("Upload error:", error);
-    throw new Error("Failed to upload file");
+  } catch (err) {
+    console.error("❌ Vercel Blob upload error:", err);
+    throw new Error("Upload failed");
   }
 }
